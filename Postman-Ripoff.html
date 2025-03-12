@@ -101,9 +101,11 @@
             font-family: 'Courier New', Courier, monospace;
             font-size: 12px;
             margin-top: 20px;
-            max-height: 200px;
-            overflow-y: auto;
+            height: 200px;  /* Fixed height */
+            max-height: 200px;  /* Max height to prevent overflow */
+            overflow-y: auto;  /* Make sure content scrolls if it exceeds the max height */
             white-space: pre-wrap;
+            margin-bottom: 30px; /* Space at the bottom */
         }
 
         .line {
@@ -149,7 +151,7 @@
 
     <div id="response" class="response-container"></div>
 
-    <div id="console"></div>
+    <div id="console"></div> <!-- Console area -->
 
     <script>
         // Function to update the response display
@@ -261,14 +263,27 @@
                 options.body = jsonInput;
             }
 
+            // Log to console about the request
+            logToConsole(`Request made to: ${url}`);
+            logToConsole(`Method: ${options.method}`);
+            if (jsonInput) {
+                logToConsole(`Request body: ${jsonInput}`);
+            }
+
             // Send the API request
             fetch(url, options)
-                .then(response => response.text()) // Get text, will be handled in the next then()
+                .then(response => {
+                    // Log status of the response
+                    logToConsole(`Response Status: ${response.status} ${response.statusText}`);
+                    return response.text();  // Convert the response to text
+                })
                 .then(data => {
                     // Call updateResponse to display either JSON or plain text based on the toggle
                     updateResponse(data, isJsonFormat);
                 })
                 .catch(error => {
+                    // Log any error to the console
+                    logToConsole(`Error: ${error}`);
                     document.getElementById("response").textContent = 'Error: ' + error;
                 });
         }

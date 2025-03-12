@@ -21,6 +21,10 @@
             margin-bottom: 20px;
         }
 
+        label {
+            font-size: 14px;
+        }
+
         input[type="text"], textarea {
             width: 100%;
             margin-bottom: 10px;
@@ -61,7 +65,7 @@
             line-height: 20px;
         }
 
-        #response {
+        .response-container {
             margin-top: 20px;
             padding: 10px;
             border: 1px solid #444;
@@ -73,24 +77,13 @@
             transition: opacity 0.3s ease-out, transform 0.3s ease-out;
         }
 
-        #successTick {
-            color: green;
-            font-size: 30px;
-            display: none;
-            margin-top: 10px;
-        }
-
         .json-key {
-            color: #FF6347; /* Tomato for key names */
+            color: #FF6347;
             font-weight: bold;
         }
 
         .json-value {
-            color: #7FFF00; /* Green for values */
-        }
-
-        .json-object, .json-array {
-            margin-left: 20px;
+            color: #7FFF00;
         }
 
         .json-container {
@@ -100,7 +93,6 @@
             word-wrap: break-word;
         }
 
-        /* Console Window Styling */
         #console {
             background-color: #333;
             color: #00FF00;
@@ -118,22 +110,8 @@
             margin-bottom: 5px;
         }
 
-        .suggestions {
-            max-height: 150px;
-            overflow-y: auto;
-            border: 1px solid #444;
-            background-color: #222;
-            padding: 5px;
-            margin-top: 5px;
-        }
-
-        .suggestion-item {
-            padding: 8px;
-            cursor: pointer;
-        }
-
-        .suggestion-item:hover {
-            background-color: #444;
+        #toggleJsonText {
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -143,19 +121,16 @@
 
     <label for="url">API URL:</label>
     <input type="text" id="url" placeholder="Enter your API URL" required><br>
-    <div class="suggestions" id="suggestions"></div>
 
-    <div>
-        <label>
-            <input type="checkbox" id="getRequest"> GET Request
-        </label>
-        <label>
-            <input type="checkbox" id="postRequest"> POST Request
-        </label>
-        <label>
-            <input type="checkbox" id="deleteRequest"> DELETE Request
-        </label>
-    </div>
+    <label>
+        <input type="checkbox" id="getRequest"> GET Request
+    </label>
+    <label>
+        <input type="checkbox" id="postRequest"> POST Request
+    </label>
+    <label>
+        <input type="checkbox" id="deleteRequest"> DELETE Request
+    </label>
 
     <label for="jsonInput">JSON Body (For POST and DELETE only):</label>
     <textarea id="jsonInput" rows="6" placeholder='{"description": "Sample description"}'></textarea><br>
@@ -166,72 +141,42 @@
         <div class="progress-bar-inner" id="progress-bar-inner">0%</div>
     </div>
 
-    <div id="response"></div>
-    <div id="successTick" class="green-tick">✔</div>
+    <!-- Toggle JSON or Plain Text display -->
+    <div id="toggleJsonText">
+        <label for="jsonToggle">Display as JSON:</label>
+        <input type="checkbox" id="jsonToggle"> <!-- Toggle for JSON/Plain text -->
+    </div>
+
+    <div id="response" class="response-container"></div>
 
     <div id="console"></div>
 
     <script>
-        // Load suggestions from localStorage
-        function loadSuggestions() {
-            const urls = JSON.parse(localStorage.getItem("urls")) || [];
-            const suggestionsContainer = document.getElementById("suggestions");
-            suggestionsContainer.innerHTML = ""; // Clear previous suggestions
-            if (urls.length > 0) {
-                urls.forEach(url => {
-                    const suggestionItem = document.createElement("div");
-                    suggestionItem.classList.add("suggestion-item");
-                    suggestionItem.textContent = url;
-                    suggestionItem.onclick = () => {
-                        document.getElementById("url").value = url;
-                        suggestionsContainer.style.display = "none";
-                    };
-                    suggestionsContainer.appendChild(suggestionItem);
-                });
-                suggestionsContainer.style.display = "block"; // Show the suggestions
+        // Function to update the response display
+        function updateResponse(responseData, isJsonFormat) {
+            const responseElement = document.getElementById("response");
+            responseElement.textContent = ""; // Clear previous response
+
+            if (isJsonFormat) {
+                // If JSON format is selected, format the JSON response
+                try {
+                    const json = JSON.parse(responseData); // Try parsing if it's valid JSON
+                    const formattedJson = formatJson(json);
+                    responseElement.appendChild(formattedJson);
+                } catch (e) {
+                    responseElement.textContent = "Invalid JSON response.";
+                }
             } else {
-                suggestionsContainer.style.display = "none"; // Hide if no suggestions
+                // Otherwise, display plain text
+                responseElement.textContent = responseData;
             }
+
+            // Show the response with smooth transition
+            responseElement.style.opacity = 1;
+            responseElement.style.transform = "translateY(0)";
         }
 
-        // Save the URL to localStorage
-        function saveUrl(url) {
-            const urls = JSON.parse(localStorage.getItem("urls")) || [];
-            if (!urls.includes(url)) {
-                urls.push(url);
-                localStorage.setItem("urls", JSON.stringify(urls));
-            }
-        }
-
-        // Update progress bar
-        function updateProgressBar(percentage) {
-            const progressBarInner = document.getElementById("progress-bar-inner");
-            progressBarInner.style.width = percentage + "%";
-            progressBarInner.textContent = percentage + "%";
-        }
-
-        // Show success tick
-        function showSuccessTick() {
-            const successTick = document.getElementById("successTick");
-            successTick.style.display = "inline";
-        }
-
-        // Handle request completion
-        function handleRequestCompletion() {
-            // Complete the progress bar animation
-            updateProgressBar(100);
-            setTimeout(() => {
-                // Hide progress bar and show success tick
-                document.getElementById("progress-bar-inner").style.display = "none";
-                showSuccessTick();
-                // Make the response visible with transition
-                const response = document.getElementById("response");
-                response.style.opacity = 1;
-                response.style.transform = "translateY(0)";
-            }, 500); // Allow time for the progress bar to reach 100% before showing the tick
-        }
-
-        // Function to render and format the JSON response
+        // Function to format and display JSON response
         function formatJson(json) {
             const container = document.createElement('div');
             for (const key in json) {
@@ -267,7 +212,7 @@
             return container;
         }
 
-        // Log request details to the console window
+        // Function to log to the console window
         function logToConsole(text) {
             const consoleElement = document.getElementById("console");
             const newLine = document.createElement("div");
@@ -277,12 +222,14 @@
             consoleElement.scrollTop = consoleElement.scrollHeight; // Auto scroll to the bottom
         }
 
+        // Function to make API request
         function makeApiRequest() {
             const url = document.getElementById("url").value;
             const jsonInput = document.getElementById("jsonInput").value;
             const isGet = document.getElementById("getRequest").checked;
             const isPost = document.getElementById("postRequest").checked;
             const isDelete = document.getElementById("deleteRequest").checked;
+            const isJsonFormat = document.getElementById("jsonToggle").checked;  // Check if JSON is selected
 
             // Clear previous response and set opacity to 0 before sending a new request
             const response = document.getElementById("response");
@@ -301,9 +248,6 @@
                 return;
             }
 
-            // Save URL to localStorage
-            saveUrl(url);
-
             // Create request options
             const options = {
                 method: isPost ? 'POST' : isDelete ? 'DELETE' : 'GET',
@@ -317,53 +261,17 @@
                 options.body = jsonInput;
             }
 
-            // Start timing the request
-            const startTime = performance.now();
-
-            // Update progress bar and simulate progress
-            let progress = 0;
-            const interval = setInterval(() => {
-                if (progress < 90) {
-                    progress += 10;
-                    updateProgressBar(progress);
-                }
-            }, 200);
-
             // Send the API request
             fetch(url, options)
-                .then(response => {
-                    const contentType = response.headers.get("content-type");
-
-                    // Log the response status and time taken
-                    const statusCode = response.status;
-                    const statusText = response.statusText;
-                    const endTime = performance.now();
-                    const duration = (endTime - startTime).toFixed(2);
-                    logToConsole(`Status: ${statusCode} ${statusText}`);
-                    logToConsole(`Response Time: ${duration} ms`);
-
-                    if (contentType && contentType.includes("application/json")) {
-                        return response.json();
-                    } else {
-                        return response.text();
-                    }
-                })
+                .then(response => response.text()) // Get text, will be handled in the next then()
                 .then(data => {
-                    // Format and display the JSON response
-                    const formattedJson = formatJson(data);
-                    response.appendChild(formattedJson);
-                    handleRequestCompletion();
+                    // Call updateResponse to display either JSON or plain text based on the toggle
+                    updateResponse(data, isJsonFormat);
                 })
                 .catch(error => {
                     document.getElementById("response").textContent = 'Error: ' + error;
-                    handleRequestCompletion();
                 });
         }
-
-        // Load previous suggestions when page loads
-        window.onload = function () {
-            loadSuggestions();
-        };
     </script>
 </body>
 </html>

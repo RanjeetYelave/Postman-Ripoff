@@ -1,6 +1,3 @@
-Sure! Here's a more formal and structured README based on the information you provided:
-
----
 
 # Postman Ripoff
 
@@ -75,7 +72,3 @@ This will allow your frontend (Postman Ripoff) to communicate with the backend A
 ## License
 
 This project is open source and available under the [MIT License](LICENSE).
-
----
-
-Let me know if you need any more details or adjustments to this README!

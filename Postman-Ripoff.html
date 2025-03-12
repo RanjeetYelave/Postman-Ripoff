@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Postman Ripoff</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            padding: 10px;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+
+        .progress-bar-inner {
+            height: 100%;
+            width: 0;
+            background-color: #3498db;
+            text-align: center;
+            color: white;
+            line-height: 20px;
+        }
+
+        .green-tick {
+            color: green;
+            font-size: 30px;
+            display: none;
+            margin-top: 10px;
+        }
+
+        .suggestions {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            padding: 5px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .suggestion-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .suggestion-item:hover {
+            background-color: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h2>Postman Ripoff</h2>
+
+    <label for="url">API URL:</label>
+    <input type="text" id="url" placeholder="Enter your API URL" required><br>
+    <div class="suggestions" id="suggestions"></div>
+
+    <div>
+        <label>
+            <input type="checkbox" id="getRequest"> GET Request
+        </label>
+        <label>
+            <input type="checkbox" id="postRequest"> POST Request
+        </label>
+        <label>
+            <input type="checkbox" id="deleteRequest"> DELETE Request
+        </label>
+    </div>
+
+    <label for="jsonInput">JSON Body (For POST and DELETE only):</label>
+    <textarea id="jsonInput" rows="6" placeholder='{"description": "Sample description"}'></textarea><br>
+
+    <button onclick="makeApiRequest()">Send Request</button>
+
+    <div class="progress-bar">
+        <div class="progress-bar-inner" id="progress-bar-inner">0%</div>
+    </div>
+    
+    <div id="response"></div>
+    <div id="successTick" class="green-tick">✔</div>
+
+    <script>
+        // Load suggestions from localStorage
+        function loadSuggestions() {
+            const urls = JSON.parse(localStorage.getItem("urls")) || [];
+            const suggestionsContainer = document.getElementById("suggestions");
+            suggestionsContainer.innerHTML = ""; // Clear previous suggestions
+            if (urls.length > 0) {
+                urls.forEach(url => {
+                    const suggestionItem = document.createElement("div");
+                    suggestionItem.classList.add("suggestion-item");
+                    suggestionItem.textContent = url;
+                    suggestionItem.onclick = () => {
+                        document.getElementById("url").value = url;
+                        suggestionsContainer.style.display = "none";
+                    };
+                    suggestionsContainer.appendChild(suggestionItem);
+                });
+                suggestionsContainer.style.display = "block"; // Show the suggestions
+            } else {
+                suggestionsContainer.style.display = "none"; // Hide if no suggestions
+            }
+        }
+
+        // Save the URL to localStorage
+        function saveUrl(url) {
+            const urls = JSON.parse(localStorage.getItem("urls")) || [];
+            if (!urls.includes(url)) {
+                urls.push(url);
+                localStorage.setItem("urls", JSON.stringify(urls));
+            }
+        }
+
+        // Handle input change for suggestions
+        document.getElementById("url").addEventListener("input", function () {
+            const query = this.value.trim();
+            if (query) {
+                loadSuggestions(); // Show matching suggestions
+            } else {
+                document.getElementById("suggestions").style.display = "none"; // Hide suggestions when empty
+            }
+        });
+
+        // Update progress bar
+        function updateProgressBar(percentage) {
+            const progressBarInner = document.getElementById("progress-bar-inner");
+            progressBarInner.style.width = percentage + "%";
+            progressBarInner.textContent = percentage + "%";
+        }
+
+        // Show success tick
+        function showSuccessTick() {
+            const successTick = document.getElementById("successTick");
+            successTick.style.display = "inline";
+            successTick.style.animation = "fadeIn 0.5s ease-in-out";
+        }
+
+        // Hide success tick
+        function hideSuccessTick() {
+            const successTick = document.getElementById("successTick");
+            successTick.style.display = "none";
+        }
+
+        // Handle request completion
+        function handleRequestCompletion() {
+            // Complete the progress bar animation
+            updateProgressBar(100);
+            setTimeout(() => {
+                // Hide progress bar and show success tick
+                document.getElementById("progress-bar-inner").style.display = "none";
+                showSuccessTick();
+                // Make the response visible with transition
+                const response = document.getElementById("response");
+                response.style.opacity = 1;
+                response.style.transform = "translateY(0)";
+            }, 500); // Allow time for the progress bar to reach 100% before showing the tick
+        }
+
+        function makeApiRequest() {
+            const url = document.getElementById("url").value;
+            const jsonInput = document.getElementById("jsonInput").value;
+            const isGet = document.getElementById("getRequest").checked;
+            const isPost = document.getElementById("postRequest").checked;
+            const isDelete = document.getElementById("deleteRequest").checked;
+
+            // Clear previous response and set opacity to 0 before sending a new request
+            const response = document.getElementById("response");
+            response.textContent = "";
+            response.style.opacity = 0; // Hide response initially
+            document.getElementById("progress-bar-inner").style.display = "block";
+
+            if (!url) {
+                alert("Please enter a URL");
+                return;
+            }
+
+            // Ensure that only one request type is selected
+            if ((isGet && (isPost || isDelete)) || (isPost && isDelete)) {
+                alert("Please select only one request type: GET, POST, or DELETE.");
+                return;
+            }
+
+            // Save URL to localStorage
+            saveUrl(url);
+
+            // Create request options
+            const options = {
+                method: isPost ? 'POST' : isDelete ? 'DELETE' : 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            // Add JSON body for POST requests only
+            if (isPost && jsonInput) {
+                options.body = jsonInput;
+            }
+
+            // Update progress bar and simulate progress
+            let progress = 0;
+            const interval = setInterval(() => {
+                if (progress < 90) {
+                    progress += 10;
+                    updateProgressBar(progress);
+                }
+            }, 200);
+
+            // Send the API request
+            fetch(url, options)
+                .then(response => {
+                    // Check if the response is JSON (based on the content type)
+                    const contentType = response.headers.get("content-type");
+
+                    if (contentType && contentType.includes("application/json")) {
+                        // If JSON, parse and return the data
+                        return response.json();
+                    } else {
+                        // If not JSON, return the raw text (could be HTML, plain text, etc.)
+                        return response.text();
+                    }
+                })
+                .then(data => {
+                    // Show response
+                    document.getElementById("response").textContent = JSON.stringify(data, null, 2);
+                    handleRequestCompletion();
+                })
+                .catch(error => {
+                    // Catch any errors and display them
+                    document.getElementById("response").textContent = 'Error: ' + error;
+                    handleRequestCompletion();
+                });
+        }
+
+        // Load previous suggestions when page loads
+        window.onload = function () {
+            loadSuggestions();
+        };
+    </script>
+</body>
+</html>

@@ -5,27 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Postman Ripoff</title>
     <style>
+        /* General Page Styling */
         body {
-            font-family: Arial, sans-serif;
-            margin: 30px;
-            padding: 10px;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #111;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
         }
+
+        h2 {
+            text-align: center;
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
         input[type="text"], textarea {
             width: 100%;
             margin-bottom: 10px;
-            padding: 8px;
+            padding: 10px;
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #444;
             box-sizing: border-box;
         }
+
         button {
-            padding: 10px 15px;
+            padding: 12px 18px;
             cursor: pointer;
             margin-top: 10px;
+            background-color: #444;
+            color: #fff;
+            border: none;
         }
+
+        button:hover {
+            background-color: #555;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #333;
+            border: 1px solid #444;
+            margin-top: 10px;
+        }
+
+        .progress-bar-inner {
+            height: 100%;
+            width: 0;
+            background-color: #00FF00;
+            text-align: center;
+            color: white;
+            line-height: 20px;
+        }
+
         #response {
             margin-top: 20px;
             padding: 10px;
-            border: 1px solid #ccc;
-            background-color: #f9f9f9;
+            border: 1px solid #444;
+            background-color: #222;
             white-space: pre-wrap;
             word-wrap: break-word;
             opacity: 0;
@@ -33,38 +73,58 @@
             transition: opacity 0.3s ease-out, transform 0.3s ease-out;
         }
 
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background-color: #f3f3f3;
-            border: 1px solid #ccc;
-            margin-top: 10px;
-        }
-
-        .progress-bar-inner {
-            height: 100%;
-            width: 0;
-            background-color: #3498db;
-            text-align: center;
-            color: white;
-            line-height: 20px;
-        }
-
-        .green-tick {
+        #successTick {
             color: green;
             font-size: 30px;
             display: none;
             margin-top: 10px;
         }
 
+        .json-key {
+            color: #FF6347; /* Tomato for key names */
+            font-weight: bold;
+        }
+
+        .json-value {
+            color: #7FFF00; /* Green for values */
+        }
+
+        .json-object, .json-array {
+            margin-left: 20px;
+        }
+
+        .json-container {
+            font-family: 'Courier New', Courier, monospace;
+            margin-bottom: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Console Window Styling */
+        #console {
+            background-color: #333;
+            color: #00FF00;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .line {
+            margin-bottom: 5px;
+        }
+
         .suggestions {
             max-height: 150px;
             overflow-y: auto;
-            border: 1px solid #ccc;
-            background-color: #f9f9f9;
+            border: 1px solid #444;
+            background-color: #222;
             padding: 5px;
             margin-top: 5px;
-            display: none;
         }
 
         .suggestion-item {
@@ -73,11 +133,12 @@
         }
 
         .suggestion-item:hover {
-            background-color: #ddd;
+            background-color: #444;
         }
     </style>
 </head>
 <body>
+
     <h2>Postman Ripoff</h2>
 
     <label for="url">API URL:</label>
@@ -104,9 +165,11 @@
     <div class="progress-bar">
         <div class="progress-bar-inner" id="progress-bar-inner">0%</div>
     </div>
-    
+
     <div id="response"></div>
     <div id="successTick" class="green-tick">✔</div>
+
+    <div id="console"></div>
 
     <script>
         // Load suggestions from localStorage
@@ -140,16 +203,6 @@
             }
         }
 
-        // Handle input change for suggestions
-        document.getElementById("url").addEventListener("input", function () {
-            const query = this.value.trim();
-            if (query) {
-                loadSuggestions(); // Show matching suggestions
-            } else {
-                document.getElementById("suggestions").style.display = "none"; // Hide suggestions when empty
-            }
-        });
-
         // Update progress bar
         function updateProgressBar(percentage) {
             const progressBarInner = document.getElementById("progress-bar-inner");
@@ -161,13 +214,6 @@
         function showSuccessTick() {
             const successTick = document.getElementById("successTick");
             successTick.style.display = "inline";
-            successTick.style.animation = "fadeIn 0.5s ease-in-out";
-        }
-
-        // Hide success tick
-        function hideSuccessTick() {
-            const successTick = document.getElementById("successTick");
-            successTick.style.display = "none";
         }
 
         // Handle request completion
@@ -183,6 +229,52 @@
                 response.style.opacity = 1;
                 response.style.transform = "translateY(0)";
             }, 500); // Allow time for the progress bar to reach 100% before showing the tick
+        }
+
+        // Function to render and format the JSON response
+        function formatJson(json) {
+            const container = document.createElement('div');
+            for (const key in json) {
+                const value = json[key];
+
+                const keyElement = document.createElement('div');
+                keyElement.classList.add('json-key');
+                keyElement.textContent = key + ':';
+
+                const valueElement = document.createElement('div');
+                valueElement.classList.add('json-value');
+
+                if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
+                    valueElement.classList.add('json-object');
+                    const nestedJson = formatJson(value);  // Recursively format the nested JSON
+                    valueElement.appendChild(nestedJson);
+                } else if (Array.isArray(value)) {
+                    valueElement.classList.add('json-array');
+                    valueElement.textContent = `[${value.length} items]`;
+                    const arrayContainer = document.createElement('div');
+                    value.forEach((item, index) => {
+                        const arrayItem = formatJson({ [`Item ${index + 1}`]: item });
+                        arrayContainer.appendChild(arrayItem);
+                    });
+                    valueElement.appendChild(arrayContainer);
+                } else {
+                    valueElement.textContent = JSON.stringify(value, null, 2);
+                }
+
+                container.appendChild(keyElement);
+                container.appendChild(valueElement);
+            }
+            return container;
+        }
+
+        // Log request details to the console window
+        function logToConsole(text) {
+            const consoleElement = document.getElementById("console");
+            const newLine = document.createElement("div");
+            newLine.classList.add("line");
+            newLine.textContent = text;
+            consoleElement.appendChild(newLine);
+            consoleElement.scrollTop = consoleElement.scrollHeight; // Auto scroll to the bottom
         }
 
         function makeApiRequest() {
@@ -225,6 +317,9 @@
                 options.body = jsonInput;
             }
 
+            // Start timing the request
+            const startTime = performance.now();
+
             // Update progress bar and simulate progress
             let progress = 0;
             const interval = setInterval(() => {
@@ -237,24 +332,29 @@
             // Send the API request
             fetch(url, options)
                 .then(response => {
-                    // Check if the response is JSON (based on the content type)
                     const contentType = response.headers.get("content-type");
 
+                    // Log the response status and time taken
+                    const statusCode = response.status;
+                    const statusText = response.statusText;
+                    const endTime = performance.now();
+                    const duration = (endTime - startTime).toFixed(2);
+                    logToConsole(`Status: ${statusCode} ${statusText}`);
+                    logToConsole(`Response Time: ${duration} ms`);
+
                     if (contentType && contentType.includes("application/json")) {
-                        // If JSON, parse and return the data
                         return response.json();
                     } else {
-                        // If not JSON, return the raw text (could be HTML, plain text, etc.)
                         return response.text();
                     }
                 })
                 .then(data => {
-                    // Show response
-                    document.getElementById("response").textContent = JSON.stringify(data, null, 2);
+                    // Format and display the JSON response
+                    const formattedJson = formatJson(data);
+                    response.appendChild(formattedJson);
                     handleRequestCompletion();
                 })
                 .catch(error => {
-                    // Catch any errors and display them
                     document.getElementById("response").textContent = 'Error: ' + error;
                     handleRequestCompletion();
                 });
